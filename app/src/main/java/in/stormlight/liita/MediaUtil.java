@@ -3,14 +3,26 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Movie;
 import android.graphics.Paint;
 import android.os.Environment;
+
+import com.coremedia.iso.IsoFile;
+import com.googlecode.mp4parser.authoring.Track;
+import com.googlecode.mp4parser.authoring.builder.DefaultMp4Builder;
+import com.googlecode.mp4parser.authoring.container.mp4.MovieCreator;
+import com.googlecode.mp4parser.authoring.tracks.AppendTrack;
 
 import org.jcodec.api.SequenceEncoder;
 import org.jcodec.common.model.ColorSpace;
 import org.jcodec.common.model.Picture;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.channels.Channels;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -56,9 +68,14 @@ public class MediaUtil {
 
             SequenceEncoder encoder = new SequenceEncoder(output);
 
+            int ti = images.length + 1;
+            int td = ((int)(ti * 1.5)) + 1;
+
+            List<Picture> pics = new ArrayList<>(ti);
             for (File image : images) {
                 Bitmap bitmap = BitmapFactory.decodeFile(image.getPath());
-                encoder.encodeNativeFrame(convertBitmapToPicture(bitmap));
+                pics.add(convertBitmapToPicture(bitmap));
+                bitmap.recycle();
             }
 
             /**
@@ -66,7 +83,11 @@ public class MediaUtil {
              */
 
             Bitmap customBm = getCustomTextImage(customText);
-            encoder.encodeNativeFrame(convertBitmapToPicture(customBm));
+            pics.add(convertBitmapToPicture(customBm));
+
+            for (int i = 0; i < pics.size(); i++) {
+                encoder.encodeNativeFrame(pics.get(i), (i*td), 1, td);
+            }
 
             encoder.finish();
 
@@ -75,6 +96,34 @@ public class MediaUtil {
              * Now, we need to add audio to the video, need to
              * implement using MP4Parser
              */
+
+
+            MovieCreator mc = new MovieCreator();
+            Movie video = mc.build(Channels.newChannel(getResourceAsStream("/count-video.mp4")));
+            Movie audio = mc.build(Channels.newChannel(getResourceAsStream("/count-english-audio.mp4")));
+
+
+            List<Track> videoTracks = video.getTracks();
+            video.setTracks(new LinkedList<Track>());
+
+            List<Track> audioTracks = audio.getTracks();
+
+
+            for (Track videoTrack : videoTracks) {
+                video.addTrack(new AppendTrack(videoTrack, videoTrack));
+            }
+            for (Track audioTrack : audioTracks) {
+                video.addTrack(new AppendTrack(audioTrack, audioTrack));
+            }
+
+            IsoFile out = new DefaultMp4Builder().build(video);
+            FileOutputStream fos = new FileOutputStream(new File(String.format("output.mp4")));
+            out.getBox(fos.getChannel());
+            fos.close();
+
+
+
+
 
             //TODO
 

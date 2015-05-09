@@ -63,7 +63,7 @@ public class SequenceEncoder {
 
     }
 
-    public void encodeNativeFrame(Picture pic) throws IOException {
+    public void encodeNativeFrame(Picture pic, int pts, int scale, int duration) throws IOException {
         if (toEncode == null) {
             toEncode = Picture.create(pic.getWidth(), pic.getHeight(), encoder.getSupportedColorSpaces()[0]);
         }
@@ -82,7 +82,7 @@ public class SequenceEncoder {
         H264Utils.encodeMOVPacket(result);
 
         // Add packet to video track
-        outTrack.addFrame(new MP4Packet(result, frameNo, 25, 1, frameNo, true, null, frameNo, 0));
+        outTrack.addFrame(new MP4Packet(result, pts, scale, duration, frameNo, true, null, frameNo, 0));
 
         frameNo++;
     }
